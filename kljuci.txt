@@ -1,0 +1,19 @@
+keytool -genkey -alias Pinoprivate -keystore Pino.private -storetype JKS -keyalg rsa -dname CN=Pino -storepass 123456 -keypass 123456 -validity 365
+keytool -genkey -alias Lukaprivate -keystore Luka.private -storetype JKS -keyalg rsa -dname CN=Luka -storepass 123456 -keypass 123456 -validity 365
+keytool -genkey -alias Leoprivate -keystore Leo.private -storetype JKS -keyalg rsa -dname CN=Leo -storepass 123456 -keypass 123456 -validity 365
+ 
+keytool -genkey -alias serverprivate -keystore server.private -storetype JKS -keyalg rsa -dname CN=localhost -storepass 123456 -keypass 123456 -validity 365
+ 
+ 
+keytool -export -alias Pinoprivate -keystore Pino.private -file izbrisi-me-1.key -storepass 123456
+keytool -import -noprompt -alias ime1public -keystore clients.public -file izbrisi-me-1.key -storepass 123456
+ 
+keytool -export -alias Lukaprivate -keystore Luka.private -file izbrisi-me-2.key -storepass 123456
+keytool -import -noprompt -alias ime2public -keystore clients.public -file izbrisi-me-2.key -storepass 123456
+ 
+keytool -export -alias Leoprivate -keystore Leo.private -file izbrisi-me-3.key -storepass 123456
+keytool -import -noprompt -alias ime3public -keystore clients.public -file izbrisi-me-3.key -storepass 123456
+ 
+ 
+keytool -export -alias serverprivate -keystore server.private -file izbrisi-me-4.key -storepass 123456
+keytool -import -noprompt -alias serverpublic -keystore server.public -file izbrisi-me-4.key -storepass 123456
