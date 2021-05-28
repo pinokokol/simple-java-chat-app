@@ -13,3 +13,5 @@ Za pošiljanje vsem (public) napišete le sporočilo in pošljete
 Za pošiljanje določenemu uporabniku napišete / imeuporabnika ipnaslov port in za tem sporočilo
 
 Primer: / pino 127.0.0.1 52127 Dober dan
+
+Dodatek za LDN10: če uporabnik nima ključa, torej če ne vpišete noter imena Pino ali Luka ali Leo, se ta uporabnik ne bo mogel povezati.

@@ -4,6 +4,8 @@ import java.util.*;
 import java.time.format.DateTimeFormatter;
 import java.time.LocalDateTime;
 import org.json.JSONObject;
+import javax.net.ssl.*;
+import java.security.*;
 
 public class ChatClient extends Thread {
 	protected int serverPort = 8888;
@@ -13,7 +15,7 @@ public class ChatClient extends Thread {
 	}
 
 	public ChatClient() throws Exception {
-		Socket socket = null;
+		SSLSocket socket = null;
 		DataInputStream in = null;
 		DataOutputStream out = null;
 
@@ -32,7 +34,34 @@ public class ChatClient extends Thread {
 		// connect to the chat server
 		try {
 			System.out.println("[system] connecting to chat server ...");
-			socket = new Socket("localhost", serverPort); // create socket connection
+			//socket = new Socket("localhost", serverPort); // create socket connection
+
+			String passphrase = "998877";
+
+			// preberi datoteko s strežnikovim certifikatom
+			KeyStore serverKeyStore = KeyStore.getInstance("JKS");
+			serverKeyStore.load(new FileInputStream("server.public"), passphrase.toCharArray());
+			
+			// preberi datoteko s svojim certifikatom in tajnim ključem
+			KeyStore clientKeyStore = KeyStore.getInstance("JKS");
+			clientKeyStore.load(new FileInputStream(ime + ".private"), passphrase.toCharArray());
+			
+			// vzpostavi SSL kontekst (komu zaupamo, kakšni so moji tajni ključi in certifikati)
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+			tmf.init(serverKeyStore);
+
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+			kmf.init(clientKeyStore, passphrase.toCharArray());
+
+			SSLContext sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), (new SecureRandom()));
+			
+			// kreiramo socket
+			SSLSocketFactory sf = sslContext.getSocketFactory();
+			socket = (SSLSocket) sf.createSocket("localhost", serverPort);
+			socket.setEnabledCipherSuites(new String[] { "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" }); // dovoljeni nacin kriptiranja (CipherSuite)
+			socket.startHandshake(); // eksplicitno sprozi SSL Handshake
+
 			in = new DataInputStream(socket.getInputStream()); // create input stream for listening for incoming messages
 			out = new DataOutputStream(socket.getOutputStream()); // create output stream for sending messages
 			System.out.println("[system] connected");
@@ -97,5 +126,3 @@ class ChatClientMessageReceiver extends Thread {
 		}
 	}
 }
-
-

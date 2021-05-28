@@ -6,22 +6,50 @@ import java.time.LocalDateTime;
 import org.json.JSONObject;
 import java.util.Arrays;
 import java.util.function.IntPredicate;
+import javax.net.ssl.*;
+import java.security.*;
 
 public class ChatServer {
 
 	protected int serverPort = 8888;
-	protected List<Socket> clients = new ArrayList<Socket>(); // list of clients
+	protected List<SSLSocket> clients = new ArrayList<SSLSocket>(); // list of clients
 
 	public static void main(String[] args) throws Exception {
 		new ChatServer();
 	}
 
 	public ChatServer() {
-		ServerSocket serverSocket = null;
+		SSLServerSocket serverSocket = null;
 
 		// create socket
 		try {
-			serverSocket = new ServerSocket(this.serverPort); // create the ServerSocket
+			//serverSocket = new ServerSocket(this.serverPort); // create the ServerSocket
+
+			String passphrase = "998877";
+
+			// preberi datoteko z odjemalskimi certifikati
+			KeyStore clientKeyStore = KeyStore.getInstance("JKS"); // KeyStore za shranjevanje odjemalčevih javnih ključev (certifikatov)
+			clientKeyStore.load(new FileInputStream("clients.public"), passphrase.toCharArray());
+
+			// preberi datoteko s svojim certifikatom in tajnim ključem
+			KeyStore serverKeyStore = KeyStore.getInstance("JKS"); // KeyStore za shranjevanje strežnikovega tajnega in javnega ključa
+			serverKeyStore.load(new FileInputStream("server.private"), passphrase.toCharArray());
+
+			// vzpostavi SSL kontekst (komu zaupamo, kakšni so moji tajni ključi in certifikati)
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+			tmf.init(clientKeyStore);
+
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+			kmf.init(serverKeyStore, passphrase.toCharArray());
+
+			SSLContext sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), (new SecureRandom()));
+
+			// kreiramo socket
+			SSLServerSocketFactory factory = sslContext.getServerSocketFactory();
+			serverSocket = (SSLServerSocket) factory.createServerSocket(serverPort);
+			serverSocket.setNeedClientAuth(true); // tudi odjemalec se MORA predstaviti s certifikatom
+			serverSocket.setEnabledCipherSuites(new String[] {"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"});
 		} catch (Exception e) {
 			System.err.println("[system] could not create socket on port " + this.serverPort);
 			e.printStackTrace(System.err);
@@ -32,13 +60,12 @@ public class ChatServer {
 		System.out.println("[system] listening ...");
 		try {
 			while (true) {
-				Socket newClientSocket = serverSocket.accept(); // wait for a new client connection
+				SSLSocket newClientSocket = (SSLSocket) serverSocket.accept(); // wait for a new client connection
+				newClientSocket.startHandshake();
 				synchronized (this) {
 					clients.add(newClientSocket); // add client to the list of clients
 				}
-				ChatServerConnector conn = new ChatServerConnector(this, newClientSocket); // create a new thread for
-																							// communication with the
-																							// new client
+				ChatServerConnector conn = new ChatServerConnector(this, newClientSocket);
 				conn.start(); // run the new thread
 			}
 		} catch (Exception e) {
@@ -59,9 +86,9 @@ public class ChatServer {
 
 	// send a message to all clients connected to the server
 	public void sendToAllClients(String message) throws Exception {
-		Iterator<Socket> i = clients.iterator();
+		Iterator<SSLSocket> i = clients.iterator();
 		while (i.hasNext()) { // iterate through the client list
-			Socket socket = (Socket) i.next(); // get the socket for communicating with this client
+			SSLSocket socket = (SSLSocket) i.next(); // get the socket for communicating with this client
 			try {
 				DataOutputStream out = new DataOutputStream(socket.getOutputStream());
 				out.writeUTF(message); // send message to the client
@@ -73,11 +100,11 @@ public class ChatServer {
 	}
 
 	// send a message to specific client connected to the server
-	public void sendToSpecificClient(String message, String ip, int port, Socket socket) throws Exception {
+	public void sendToSpecificClient(String message, String ip, int port, SSLSocket socket) throws Exception {
         int counter = 0;
         for (int i = 0; i < clients.size(); i++) {
             if (clients.get(i).getInetAddress().getHostName().equals(ip) && clients.get(i).getPort() == port) {
-                Socket secondSocket = (Socket) clients.get(i);
+                SSLSocket secondSocket = (SSLSocket) clients.get(i);
                 try {
                     DataOutputStream out = new DataOutputStream(secondSocket.getOutputStream());
                     out.writeUTF(message);
@@ -107,7 +134,7 @@ public class ChatServer {
     }
 	
 
-	public void removeClient(Socket socket) {
+	public void removeClient(SSLSocket socket) {
 		synchronized (this) {
 			clients.remove(socket);
 		}
@@ -116,11 +143,19 @@ public class ChatServer {
 
 class ChatServerConnector extends Thread {
 	private ChatServer server;
-	private Socket socket;
+	private SSLSocket socket;
+	String username;
 
-	public ChatServerConnector(ChatServer server, Socket socket) {
+	public ChatServerConnector(ChatServer server, SSLSocket socket) {
 		this.server = server;
 		this.socket = socket;
+		try {
+			username = ((SSLSocket) socket).getSession().getPeerPrincipal().getName();
+		}
+		catch (SSLPeerUnverifiedException e) {
+			e.printStackTrace();
+		}	
+		
 	}
 
 	public void run() {
