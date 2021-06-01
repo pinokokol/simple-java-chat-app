@@ -144,13 +144,13 @@ public class ChatServer {
 class ChatServerConnector extends Thread {
 	private ChatServer server;
 	private SSLSocket socket;
-	String username;
+	String senderssl;
 
 	public ChatServerConnector(ChatServer server, SSLSocket socket) {
 		this.server = server;
 		this.socket = socket;
 		try {
-			username = ((SSLSocket) socket).getSession().getPeerPrincipal().getName();
+			senderssl = ((SSLSocket) socket).getSession().getPeerPrincipal().getName();
 		}
 		catch (SSLPeerUnverifiedException e) {
 			e.printStackTrace();
@@ -207,9 +207,9 @@ class ChatServerConnector extends Thread {
 			// send to all
 			if (reciever.equals("public")) {
 				
-				System.out.println("[RKchat]" + "[" + time +"]" + "[" + this.socket.getPort() + " " + sender + "] " + "[to " + reciever + "]" + ": " + message);
+				System.out.println("[RKchat]" + "[" + time +"]" + "[" + this.socket.getPort() + " " + senderssl + "] " + "[to " + reciever + "]" + ": " + message);
 
-				String msg_send = "[" + time +"] " + sender + " [to " + reciever +"]" + " said: " + message.toUpperCase();
+				String msg_send = "[" + time +"] " + senderssl/*sender*/ + " [to " + reciever +"]" + " said: " + message.toUpperCase();
 
 				try {
 					this.server.sendToAllClients(msg_send); // send message to all clients
@@ -221,9 +221,9 @@ class ChatServerConnector extends Thread {
 
 			} else {
 				
-				System.out.println("[RKchat]" + "[" + time +"]" + "[" + this.socket.getPort() + " " + sender + "] " + "[to " + reciever + "]" + ": " + message);
+				System.out.println("[RKchat]" + "[" + time +"]" + "[" + this.socket.getPort() + " " + senderssl + "] " + "[to " + reciever + "]" + ": " + message);
 
-				String msg_send = "[" + time +"] " + sender + " [to " + reciever +"]" + " said: " + message.toUpperCase();
+				String msg_send = "[" + time +"] " + senderssl + " [to " + reciever +"]" + " said: " + message.toUpperCase();
 
 				try {
 					this.server.sendToSpecificClient(msg_send, ip, port, this.socket); // send message to all clients
